@@ -1,30 +1,26 @@
 import mysql.connector
 from mysql.connector import pooling
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+connection_pool = None
 
-dbconfig = {
-    "host": os.getenv("DB_HOST"),
-    "user": os.getenv("DB_USER"),
-    "password": os.getenv("DB_PASSWORD"),
-    "database": os.getenv("DB_NAME"),
-    "port": int(os.getenv("DB_PORT", 3306)),
-    "connection_timeout": 30
-}
+def init_pool():
+    global connection_pool
 
-connection_pool = pooling.MySQLConnectionPool(
-    pool_name="mypool",
-    pool_size=3,      # InfinityFree cannot handle 10 connections
-    pool_reset_session=True,
-    **dbconfig
-)
+    if connection_pool is None:
+        connection_pool = pooling.MySQLConnectionPool(
+            pool_name="mypool",
+            pool_size=3,
+            pool_reset_session=True,
+            host=os.getenv("DB_HOST"),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASSWORD"),
+            database=os.getenv("DB_NAME"),
+            port=int(os.getenv("DB_PORT", 3306)),
+            connection_timeout=30
+        )
 
 def get_db():
-    try:
-        conn = connection_pool.get_connection()
-        return conn
-    except Exception as e:
-        print("DB ERROR:", e)
-        raise
+    if connection_pool is None:
+        init_pool()
+    return connection_pool.get_connection()
