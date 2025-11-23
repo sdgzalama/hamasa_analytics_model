@@ -17,6 +17,11 @@ app = FastAPI(
     description="AI-powered media monitoring system"
 )
 
+@app.get("/")
+async def root():
+    return {"message": "Media Monitoring Backend is running.,"
+    "see /docs for API documentation."}
+
 # CORS
 app.add_middleware(
     CORSMiddleware,
@@ -40,4 +45,4 @@ app.include_router(project_insights_router)
 app.include_router(project_media.router)
 app.include_router(thematic_area.router)
 
-# REMOVE uvicorn.run — Render must run uvicorn itself
+# REMOVE uvicorn.run — Ren  der must run uvicorn itself
