@@ -1,11 +1,43 @@
-# backend/main.py
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 
-import uvicorn
+from routers.project_insights import router as project_insights_router
+from routers import (
+    health, projects, items, test_db, clients, scrape,
+    analysis, dashboard, project_dashboard, media_sources,
+    project_media, thematic_area
+)
 
-if __name__ == "__main__":
-    uvicorn.run(
-        "app:app",
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+load_dotenv()
+
+app = FastAPI(
+    title="Media Monitoring Backend",
+    version="1.0.0",
+    description="AI-powered media monitoring system"
+)
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ROUTES
+app.include_router(health.router)
+app.include_router(projects.router)
+app.include_router(clients.router)
+app.include_router(items.router)
+app.include_router(scrape.router)
+app.include_router(analysis.router)
+app.include_router(dashboard.router)
+app.include_router(project_dashboard.router)
+app.include_router(media_sources.router)
+app.include_router(project_insights_router)
+app.include_router(project_media.router)
+app.include_router(thematic_area.router)
+
+# REMOVE uvicorn.run — Render must run uvicorn itself
