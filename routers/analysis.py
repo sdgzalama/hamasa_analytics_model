@@ -154,3 +154,43 @@ def process_media_item(media_id: str):
         "final_relevant": final_relevant,
         "per_project_results": results
     }
+
+@router.get("/all")
+def get_all_analysis():
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    cursor.execute("""
+        SELECT 
+            id,
+            media_item_id,
+            project_id,
+            relevant,
+            relevance_confidence,
+            relevance_reason,
+            semantic_area_ids,
+            matched_thematic_areas,
+            ai_fields,
+            summary,
+            created_at
+        FROM media_item_project_analysis
+        ORDER BY created_at DESC
+    """)
+
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    # Convert JSON-like fields from strings to actual objects
+    for r in rows:
+        for field in ["semantic_area_ids", "matched_thematic_areas", "ai_fields"]:
+            try:
+                if isinstance(r[field], str):
+                    r[field] = eval(r[field])  # safe since DB content is trusted
+            except:
+                pass
+
+    return {
+        "count": len(rows),
+        "items": rows
+    }

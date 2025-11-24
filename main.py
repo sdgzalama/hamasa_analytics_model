@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+from database.connection import get_db
+import os
+
 
 from routers.project_insights import router as project_insights_router
 from routers import (
@@ -17,6 +20,19 @@ app = FastAPI(
     description="AI-powered media monitoring system"
 )
 
+
+@app.on_event("startup")
+def startup_test():
+    
+    try:
+        conn = get_db()
+        conn.close()
+        print("[STARTUP] Database connection OK")
+        
+
+    except Exception as e:
+        print("[STARTUP ERROR] Database not available:", e)
+        
 @app.get("/")
 async def root():
     return {"message": "Media Monitoring Backend is running.,"
