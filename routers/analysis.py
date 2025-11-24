@@ -162,19 +162,23 @@ def get_all_analysis():
 
     cursor.execute("""
         SELECT 
-            id,
-            media_item_id,
-            project_id,
-            relevant,
-            relevance_confidence,
-            relevance_reason,
-            semantic_area_ids,
-            matched_thematic_areas,
-            ai_fields,
-            summary,
-            created_at
-        FROM media_item_project_analysis
-        ORDER BY created_at DESC
+            a.id,
+            a.media_item_id,
+            m.raw_title AS media_item_title,
+            a.project_id,
+            p.title AS project_name,     -- FIXED
+            a.relevant,
+            a.relevance_confidence,
+            a.relevance_reason,
+            a.semantic_area_ids,
+            a.matched_thematic_areas,
+            a.ai_fields,
+            a.summary,
+            a.created_at
+        FROM media_item_project_analysis a
+        LEFT JOIN media_items m ON a.media_item_id = m.id
+        LEFT JOIN projects p ON a.project_id = p.id
+        ORDER BY a.created_at DESC
     """)
 
     rows = cursor.fetchall()
@@ -186,7 +190,7 @@ def get_all_analysis():
         for field in ["semantic_area_ids", "matched_thematic_areas", "ai_fields"]:
             try:
                 if isinstance(r[field], str):
-                    r[field] = eval(r[field])  # safe since DB content is trusted
+                    r[field] = eval(r[field])
             except:
                 pass
 
