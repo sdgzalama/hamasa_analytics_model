@@ -16,10 +16,10 @@ def init_pool():
             pool_name="mypool",
             pool_size=5,
             pool_reset_session=True,
-            host=os.getenv("DB_HOST"),
-            user=os.getenv("DB_USER"),
-            password=os.getenv("DB_PASSWORD"),
-            database=os.getenv("DB_NAME"),
+            host="srv526.hstgr.io",
+            user="u855436630_media_user",
+            password="u1C^/o|A0p>Y",
+            database="u855436630_media_m_db",
             port=int(os.getenv("DB_PORT", 3306)),
             connection_timeout=30
         )

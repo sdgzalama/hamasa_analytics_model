@@ -3,6 +3,9 @@
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from database.connection import get_db
 from worker.task_queue import queue_bulk_processing, get_progress
+from formatters.media_output import format_media_output
+from project_loader import load_project_details
+
 
 router = APIRouter(prefix="/media", tags=["Media Items"])
 
@@ -129,3 +132,39 @@ def get_media_item(media_id: str):
         **item,
         "project_analysis": analyses
     }
+
+@router.get("/{media_id}/formatted")
+def get_formatted_media_item(media_id: str):
+    conn = get_db()
+    cursor = conn.cursor(dictionary=True)
+
+    # Load base media item
+    cursor.execute("""
+        SELECT m.*, s.name AS source_name
+        FROM media_items m
+        JOIN media_sources s ON s.id = m.source_id
+        WHERE m.id = %s
+    """, (media_id,))
+    item = cursor.fetchone()
+    if not item:
+        raise HTTPException(404, "Media item not found")
+
+    # Load analysis rows
+    cursor.execute("""
+        SELECT *
+        FROM media_item_project_analysis
+        WHERE media_item_id = %s
+    """, (media_id,))
+    analyses = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    # Load project config
+    project = load_project_details(item["project_id"])
+
+    # Format each analysis row
+    return [
+        format_media_output(item, a, project)
+        for a in analyses
+    ]

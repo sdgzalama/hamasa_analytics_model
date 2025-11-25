@@ -4,17 +4,35 @@ import requests
 from bs4 import BeautifulSoup
 from database.connection import get_db
 from datetime import datetime
+from utils.logs import log_scrape
 
 
 # ---------------------------------------------------------
-# FETCH FULL ARTICLE TEXT
+# FETCH FULL ARTICLE TEXT (simple + readability fallback)
 # ---------------------------------------------------------
 def fetch_article_text(url: str) -> str:
     try:
         response = requests.get(url, timeout=10)
-        soup = BeautifulSoup(response.text, "html.parser")
+        html = response.text
+
+        # 1) Try readability cleaner
+        try:
+            from readability import Document
+            doc = Document(html)
+            cleaned_html = doc.summary()
+            soup = BeautifulSoup(cleaned_html, "html.parser")
+            paragraphs = soup.find_all(["p", "h1", "h2"])
+            text = "\n".join([p.get_text(strip=True) for p in paragraphs])
+            if len(text) > 50:
+                return text
+        except:
+            pass
+
+        # 2) Fallback simple extraction
+        soup = BeautifulSoup(html, "html.parser")
         paragraphs = soup.find_all("p")
         return " ".join([p.get_text(strip=True) for p in paragraphs]).strip()
+
     except Exception as e:
         print("Article fetch failed:", e)
         return ""
@@ -26,7 +44,7 @@ def fetch_article_text(url: str) -> str:
 def get_existing_item_id(url: str):
     conn = get_db()
     cursor = conn.cursor()
-    cursor.execute("SELECT id FROM media_items WHERE url = %s LIMIT 1", (url,))
+    cursor.execute("SELECT id FROM media_items WHERE url=%s LIMIT 1", (url,))
     row = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -50,7 +68,6 @@ def save_media_item(source_id, title, text, url, published_at):
     conn.commit()
     cursor.close()
     conn.close()
-
     return media_id
 
 
@@ -72,82 +89,96 @@ def link_item_to_project(project_id, media_id):
 
 
 # ---------------------------------------------------------
-# MAIN SCRAPER — CLEAN VERSION (NO AI)
+# MAIN RSS SCRAPER
 # ---------------------------------------------------------
 def scrape_rss(project_id: str, source_id: str, feed_url: str):
     print("Scraping RSS:", feed_url)
 
-    feed = feedparser.parse(feed_url)
-    if not feed.entries:
-        return {"new_items": 0, "reused_items": 0, "items": []}
+    try:
+        feed = feedparser.parse(feed_url)
+        if not feed.entries:
+            return {"new_items": 0, "reused_items": 0, "items": []}
 
-    # ----------------------------------------------------
-    # GET ALL PROJECTS USING THIS SOURCE
-    # ----------------------------------------------------
-    conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+        # Load all linked projects
+        conn = get_db()
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute("""
+            SELECT project_id
+            FROM project_media_sources
+            WHERE media_source_id=%s
+        """, (source_id,))
+        project_ids = [p["project_id"] for p in cursor.fetchall()]
+        cursor.close()
+        conn.close()
 
-    cursor.execute("""
-        SELECT project_id
-        FROM project_media_sources
-        WHERE media_source_id = %s
-    """, (source_id,))
+        inserted = 0
+        reused = 0
+        results = []
 
-    all_projects = cursor.fetchall()
-    project_ids = [p["project_id"] for p in all_projects]
+        for entry in feed.entries:
+            title = entry.get("title", "")
+            url = entry.get("link", "")
+            if not url:
+                continue
 
-    cursor.close()
-    conn.close()
+            published = None
+            if entry.get("published_parsed"):
+                published = datetime(*entry.published_parsed[:6])
 
-    print("Source shared to these projects:", project_ids)
+            existing = get_existing_item_id(url)
 
-    inserted = 0
-    reused = 0
-    results = []
+            # Already in DB? Link only.
+            if existing:
+                for pid in project_ids:
+                    link_item_to_project(pid, existing)
+                reused += 1
+                continue
 
-    # ----------------------------------------------------
-    # PROCESS FEED ITEMS
-    # ----------------------------------------------------
-    for entry in feed.entries:
-        title = entry.get("title", "")
-        url = entry.get("link", "")
-        if not url:
-            continue
+            # Fetch missing article text
+            text = fetch_article_text(url)
 
-        published = None
-        if entry.get("published_parsed"):
-            published = datetime(*entry.published_parsed[:6])
+            media_id = save_media_item(source_id, title, text, url, published)
 
-        # Check if item already exists
-        existing_id = get_existing_item_id(url)
-
-        if existing_id:
             for pid in project_ids:
-                link_item_to_project(pid, existing_id)
-            reused += 1
-            continue
+                link_item_to_project(pid, media_id)
 
-        # Save new item
-        text = fetch_article_text(url)
-        media_id = save_media_item(source_id, title, text, url, published)
+            inserted += 1
+            results.append({
+                "media_id": media_id,
+                "title": title,
+                "url": url,
+                "published_at": published
+            })
 
-        for pid in project_ids:
-            link_item_to_project(pid, media_id)
+        # --- LOG SUCCESS ---
+        log_scrape(
+            source_id=source_id,
+            source_name=feed_url,
+            project_id=project_id,
+            method="rss",
+            new_items=inserted,
+            reused_items=reused,
+            status="success",
+            message="RSS scrape completed"
+        )
 
-        inserted += 1
-        results.append({
-            "media_id": media_id,
-            "title": title,
-            "url": url,
-            "published_at": published
-        })
+        return {
+            "new_items": inserted,
+            "reused_items": reused,
+            "items": results
+        }
 
-    # ----------------------------------------------------
-    # IMPORTANT!! — NO AI CALLS HERE
-    # ----------------------------------------------------
-
-    return {
-        "new_items": inserted,
-        "reused_items": reused,
-        "items": results
-    } 
+    except Exception as e:
+        # --- LOG ERROR (missing in your version) ---
+        log_scrape(
+            source_id=source_id,
+            source_name=feed_url,
+            project_id=project_id,
+            method="rss",
+            new_items=0,
+            reused_items=0,
+            status="error",
+            message=str(e)
+        )
+        print("[RSS SCRAPER ERROR]:", e)
+        return {"error": str(e)}
