@@ -209,6 +209,9 @@ def sync_loop():
 # 5️⃣ START BACKGROUND THREAD
 # ----------------------------------------------------------
 def start_sync_scheduler():
+    def delayed_start():
+        time.sleep(5)  # slight delay to ensure DB is ready
+        sync_loop()
     thread = threading.Thread(target=sync_loop, daemon=True)
     thread.start()
     print("[SYNC] Auto-sync scheduler started.")

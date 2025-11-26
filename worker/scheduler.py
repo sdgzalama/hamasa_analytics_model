@@ -19,7 +19,7 @@ def process_one_item():
 
     row = cursor.fetchone()
     cursor.close()
-    # conn.close()
+    conn.close()
 
     if not row:
         return
@@ -33,10 +33,16 @@ def process_one_item():
         print("Scheduler error:", e)
 
 def start_scheduler():
+
+    def delayed_start():
+        time.sleep(5)  # allow FastAPI to fully start
+        loop()
+
     def loop():
         while True:
             process_one_item()
-            time.sleep(600)  # 10 minutes
+            time.sleep(600)  # every 10 minutes
 
-    thread = threading.Thread(target=loop, daemon=True)
+    thread = threading.Thread(target=delayed_start, daemon=True)
     thread.start()
+
