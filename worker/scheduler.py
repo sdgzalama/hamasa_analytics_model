@@ -19,7 +19,7 @@ def process_one_item():
 
     row = cursor.fetchone()
     cursor.close()
-    conn.close()
+    # conn.close()
 
     if not row:
         return

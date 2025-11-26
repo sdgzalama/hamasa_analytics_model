@@ -18,7 +18,7 @@ def get_thematics(project_id: str):
 
     if not project:
         cursor.close()
-        conn.close()
+        # conn.close()
         raise HTTPException(status_code=404, detail="Project not found")
 
     cursor.execute("""
@@ -31,7 +31,7 @@ def get_thematics(project_id: str):
     areas = cursor.fetchall()
 
     cursor.close()
-    conn.close()
+    # conn.close()
 
     return {"project": project, "thematic_areas": areas}
 

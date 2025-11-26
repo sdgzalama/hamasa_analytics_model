@@ -179,7 +179,7 @@ def process_media_item(media_id: str):
 
         conn.commit()
         cursor.close()
-        conn.close()
+        # conn.close()
 
         # 5️⃣ Mark as COMPLETE
         mark_status(media_id, "done")

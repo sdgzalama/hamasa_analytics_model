@@ -136,7 +136,7 @@ def import_project(data: ImportRequest):
 
     conn.commit()
     cursor.close()
-    conn.close()
+    # conn.close()
 
     return {
         "status": "success",

@@ -108,7 +108,7 @@ def create_project(project: ProjectCreate):
     finally:
         if conn.is_connected():
             cursor.close()
-            conn.close()
+            # conn.close()
 
 # ----------------------------------
 # GET: List all projects

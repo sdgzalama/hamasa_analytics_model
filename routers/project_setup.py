@@ -178,4 +178,4 @@ def setup_project(project_data: dict):
 
     finally:
         cursor.close()
-        conn.close()
+        # conn.close()

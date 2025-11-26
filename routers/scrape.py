@@ -21,7 +21,7 @@ def scrape_rss_endpoint(
     
     source = cursor.fetchone()
     cursor.close()
-    conn.close()
+    # conn.close()
 
     if not source:
         raise HTTPException(status_code=404, detail="Source ID not found")
@@ -86,7 +86,7 @@ def run_all_sources():
             })
 
     cursor.close()
-    conn.close()
+    # conn.close()
 
     return {
         "status": "ok",
