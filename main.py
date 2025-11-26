@@ -5,11 +5,14 @@ from database.connection import get_db
 import threading
 import os
 
+
 # SCHEDULERS
+from schedulers.sync_scheduler import start_sync_scheduler
 from worker.scheduler import start_scheduler            # AI analysis scheduler
 from schedulers.scraper_scheduler import scraper_scheduler   # Web/RSS scraper scheduler
 
 # ROUTERS
+
 from routers.project_insights import router as project_insights_router
 from routers import (
     health,
@@ -48,6 +51,7 @@ app = FastAPI(
 def startup_event():
     # Start AI scheduler (runs every X mins)
     start_scheduler()
+    start_sync_scheduler()  # Start sync scheduler (runs every 6 hours)
 
     # DB health check
     try:
