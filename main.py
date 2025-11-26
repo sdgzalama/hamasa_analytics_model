@@ -1,13 +1,18 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+load_dotenv()
 from database.connection import get_db
 import threading
 import os
-
+# print("[DEBUG] Loaded HAMASA_TOKEN:", os.getenv("HAMASA_TOKEN"))
+# print("[DEBUG] Loaded HAMASA_API_URL:", os.getenv("HAMASA_API_URL"))
 
 # SCHEDULERS
-from schedulers.sync_scheduler import start_sync_scheduler
+from worker.sync_projects import start_sync_scheduler
+
+from routers.sync_control import router as sync_router
+# from schedulers.sync_schedulerOLD import start_sync_scheduler
 from worker.scheduler import start_scheduler            # AI analysis scheduler
 from schedulers.scraper_scheduler import scraper_scheduler   # Web/RSS scraper scheduler
 
@@ -36,7 +41,7 @@ from routers import (
 # ------------------------------------
 threading.Thread(target=scraper_scheduler, daemon=True).start()
 
-load_dotenv()
+# load_dotenv()
 
 app = FastAPI(
     title="Media Monitoring Backend",
@@ -50,8 +55,8 @@ app = FastAPI(
 @app.on_event("startup")
 def startup_event():
     # Start AI scheduler (runs every X mins)
-    start_scheduler()
     start_sync_scheduler()  # Start sync scheduler (runs every 6 hours)
+    start_scheduler()
 
     # DB health check
     try:
@@ -101,5 +106,6 @@ app.include_router(project_media.router)
 app.include_router(thematic_area.router)
 app.include_router(project_reports.router)
 app.include_router(project_setup.router)
-
+# app.include_router(test_db.router)
+app.include_router(sync_router)
 # uvicorn.run is removed — Render/your host manages the server
