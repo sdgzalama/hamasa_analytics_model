@@ -2,22 +2,18 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 load_dotenv()
+
 from database.connection import get_db
 import threading
 import os
-# print("[DEBUG] Loaded HAMASA_TOKEN:", os.getenv("HAMASA_TOKEN"))
-# print("[DEBUG] Loaded HAMASA_API_URL:", os.getenv("HAMASA_API_URL"))
 
 # SCHEDULERS
 from worker.sync_projects import start_sync_scheduler
-
-from routers.sync_control import router as sync_router
-# from schedulers.sync_schedulerOLD import start_sync_scheduler
 from worker.scheduler import start_scheduler            # AI analysis scheduler
 from schedulers.scraper_scheduler import scraper_scheduler   # Web/RSS scraper scheduler
 
 # ROUTERS
-
+from routers.sync_control import router as sync_router
 from routers.project_insights import router as project_insights_router
 from routers import (
     health,
@@ -36,29 +32,20 @@ from routers import (
     project_setup
 )
 
-# ------------------------------------
-# START SCRAPER SCHEDULER ON BOOT
-# ------------------------------------
-threading.Thread(target=scraper_scheduler, daemon=True).start()
-
-# load_dotenv()
-
 app = FastAPI(
     title="Media Monitoring Backend",
     version="1.0.0",
     description="AI-powered media monitoring system"
 )
 
-# ------------------------------------
-# STARTUP EVENTS
-# ------------------------------------
 @app.on_event("startup")
 def startup_event():
-    # Start AI scheduler (runs every X mins)
-    start_sync_scheduler()  # Start sync scheduler (runs every 6 hours)
+    # must run AFTER FastAPI has initialized
+    start_sync_scheduler()
     start_scheduler()
 
-    # DB health check
+    threading.Thread(target=scraper_scheduler, daemon=True).start()
+
     try:
         conn = get_db()
         conn.close()

@@ -92,6 +92,11 @@ def link_item_to_project(project_id, media_id):
 # MAIN RSS SCRAPER
 # ---------------------------------------------------------
 def scrape_rss(project_id: str, source_id: str, feed_url: str):
+
+    print("[RSS] Starting scrape:", feed_url)
+    feed = feedparser.parse(feed_url)
+    print("[RSS] Feed loaded:", len(feed.entries))
+
     print("Scraping RSS:", feed_url)
 
     try:
