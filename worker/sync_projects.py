@@ -127,28 +127,64 @@ def upsert_project(p):
         # ----------------------------------------------------------
         # 3️⃣ UPSERT MEDIA SOURCES
         # ----------------------------------------------------------
+        # for src in p.get("media_sources", []):
+        #     sid = src["id"]
+        #     name = src["name"]
+        #     category = src.get("category_name", "")
+
+        #     cursor.execute("SELECT id FROM media_sources WHERE id=%s", (sid,))
+        #     exists = cursor.fetchone()
+
+        #     if not exists:
+        #         cursor.execute("""
+        #             INSERT INTO media_sources(id, name, type)
+        #             VALUES (%s, %s, %s)
+        #         """, (sid, name, category))
+        #     else:
+        #         cursor.execute("""
+        #             UPDATE media_sources SET name=%s, type=%s WHERE id=%s
+        #         """, (name, category, sid))
+
+        #     cursor.execute("""
+        #         INSERT IGNORE INTO project_media_sources(project_id, media_source_id)
+        #         VALUES (%s, %s)
+        #     """, (pid, sid))
+        # ----------------------------------------------------------
+# 3️⃣ UPSERT MEDIA SOURCES (deduplicate by name)
+# ----------------------------------------------------------
         for src in p.get("media_sources", []):
-            sid = src["id"]
+            sid = src["id"]               # Hamasa ID
             name = src["name"]
             category = src.get("category_name", "")
-
-            cursor.execute("SELECT id FROM media_sources WHERE id=%s", (sid,))
-            exists = cursor.fetchone()
-
-            if not exists:
+        
+            # 1. Check if a media source with this NAME already exists
+            cursor.execute("SELECT id FROM media_sources WHERE name=%s", (name,))
+            row = cursor.fetchone()
+        
+            if row:
+                # Reuse existing ID → prevent duplicates
+                final_id = row["id"]
+            else:
+                # No existing name → use Hamasa ID
+                final_id = sid
+        
+                # Insert new row
                 cursor.execute("""
                     INSERT INTO media_sources(id, name, type)
                     VALUES (%s, %s, %s)
-                """, (sid, name, category))
-            else:
-                cursor.execute("""
-                    UPDATE media_sources SET name=%s, type=%s WHERE id=%s
-                """, (name, category, sid))
-
+                """, (final_id, name, category))
+        
+            # Always update category if needed
+            cursor.execute("""
+                UPDATE media_sources SET type=%s WHERE id=%s
+            """, (category, final_id))
+        
+            # Connect project → media source
             cursor.execute("""
                 INSERT IGNORE INTO project_media_sources(project_id, media_source_id)
                 VALUES (%s, %s)
-            """, (pid, sid))
+            """, (pid, final_id))
+
 
         # ----------------------------------------------------------
         # 4️⃣ UPSERT THEMATIC AREAS
