@@ -4,7 +4,9 @@ import json
 import threading
 from database.connection import get_db
 
-BASE_URL = "http://13.48.124.122/hamasa-api/v1"
+# BASE_URL = "http://13.48.124.122/hamasa-api/v1"
+BASE_URL = "http://13.48.124.122/api/hamasa-api/v1"
+
 
 IDENTIFIER = "0746424480"
 PASSWORD = "12345678"
