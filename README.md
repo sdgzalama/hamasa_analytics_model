@@ -1,0 +1,1 @@
+this is a model that auto scrap media new from different sites, once media items are scraped are stored in Database then after the ai analysis of news are started by schedular then insights are generated to be sent to the frontend
